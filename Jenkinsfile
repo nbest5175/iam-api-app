@@ -1,8 +1,14 @@
+
+git add Jenkinsfile
+git commit -m "Add Docker build and push stages"
+git push origin main
 pipeline {
     agent any
 
     environment {
-        APP_NAME = "iam-api-app"
+        IMAGE_NAME = "nbest5175/my-app"
+        IMAGE_TAG = "latest"
+        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
     }
 
     stages {
@@ -20,21 +26,32 @@ pipeline {
             }
         }
 
-        stage('Run App Test') {
+        stage('Build Docker Image') {
             steps {
-                echo "Testing Flask app startup..."
-                sh 'python3 app.py & sleep 5; curl -f http://localhost:5000 || exit 1'
-                sh 'pkill -f app.py'
+                echo "Building Docker image..."
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+            }
+        }
+
+        stage('Push Docker Image to Docker Hub') {
+            steps {
+                echo "Pushing Docker image to Docker Hub..."
+                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                    '''
+                }
             }
         }
     }
 
     post {
         success {
-            echo "Pipeline completed successfully."
+            echo '✅ Pipeline completed successfully!'
         }
         failure {
-            echo "Pipeline failed. Check logs for details."
+            echo '❌ Pipeline failed. Check the console output.'
         }
     }
 }
