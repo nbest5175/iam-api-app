@@ -1,58 +1,58 @@
-
-git add Jenkinsfile
-git commit -m "Add Docker build and push stages"
-git push origin main
 pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "nbest5175/my-app"
-        IMAGE_TAG = "latest"
-        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"
+        DOCKER_HUB_CREDENTIALS = credentials('docker-hub-credentials')
+        IMAGE_NAME = 'nbest5175/my-app'
     }
 
     stages {
         stage('Clone Repo') {
             steps {
-                echo "Cloning repository..."
+                echo 'Cloning repository...'
                 checkout scm
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                echo "Installing Python dependencies..."
+                echo 'Installing Python dependencies...'
                 sh 'pip3 install -r requirements.txt'
+            }
+        }
+
+        stage('Run App Test') {
+            steps {
+                echo 'Running app test...'
+                sh 'python3 app.py'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo "Building Docker image..."
-                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                echo 'Building Docker image...'
+                sh 'docker build -t $IMAGE_NAME .'
             }
         }
 
-        stage('Push Docker Image to Docker Hub') {
+        stage('Push to Docker Hub') {
             steps {
-                echo "Pushing Docker image to Docker Hub..."
-                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
+                echo 'Pushing Docker image to Docker Hub...'
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh """
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                    '''
+                        docker push $IMAGE_NAME
+                    """
                 }
             }
         }
     }
 
     post {
-        success {
-            echo '✅ Pipeline completed successfully!'
-        }
         failure {
-            echo '❌ Pipeline failed. Check the console output.'
+            echo 'Pipeline failed. Check logs for details.'
         }
     }
 }
+
 
